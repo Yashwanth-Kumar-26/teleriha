@@ -515,8 +515,8 @@ go test ./pkg/bot/...
 
 ## Contributing
 
-Contributions are welcome! See CONTRIBUTING.md for guidelines.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-TeleRiHa is released under the Apache License 2.0. See LICENSE for details.
+TeleRiHa is released under the Apache License 2.0. See [LICENSE](LICENSE) for details.
