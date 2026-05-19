@@ -33,7 +33,7 @@ func TestBotOptions(t *testing.T) {
 func TestBot_GetMe(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/getMe", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"id":123,"is_bot":true,"first_name":"TestBot"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"id":123,"is_bot":true,"first_name":"TestBot"}}`)
 	}))
 	defer server.Close()
 
@@ -49,10 +49,10 @@ func TestBot_SendMessage(t *testing.T) {
 		assert.Equal(t, "/bottoken/sendMessage", r.URL.Path)
 		body, _ := io.ReadAll(r.Body)
 		var params map[string]interface{}
-		json.Unmarshal(body, &params)
+		_ = json.Unmarshal(body, &params)
 		assert.Equal(t, float64(123), params["chat_id"])
 		assert.Equal(t, "hello", params["text"])
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"text":"hello"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"text":"hello"}}`)
 	}))
 	defer server.Close()
 
@@ -65,7 +65,7 @@ func TestBot_SendMessage(t *testing.T) {
 func TestBot_SetWebhook(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/setWebhook", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 
@@ -77,7 +77,7 @@ func TestBot_SetWebhook(t *testing.T) {
 func TestBot_DeleteWebhook(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/deleteWebhook", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 
@@ -90,7 +90,7 @@ func TestBot_Polling(t *testing.T) {
 	handlerCalled := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/bottoken/getUpdates" {
-			fmt.Fprint(w, `{"ok":true,"result":[{"update_id":1,"message":{"message_id":100,"text":"/ping"}}]}`)
+			_, _ = fmt.Fprint(w, `{"ok":true,"result":[{"update_id":1,"message":{"message_id":100,"text":"/ping"}}]}`)
 		}
 	}))
 	defer server.Close()
@@ -197,7 +197,7 @@ func TestBot_Builder(t *testing.T) {
 func TestBot_CallMethod_Error(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, `{"ok":false,"description":"bad request","error_code":400}`)
+		_, _ = fmt.Fprint(w, `{"ok":false,"description":"bad request","error_code":400}`)
 	}))
 	defer server.Close()
 
@@ -209,7 +209,7 @@ func TestBot_CallMethod_Error(t *testing.T) {
 
 func TestBot_CallMethod_APIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":false,"description":"api error","error_code":500}`)
+		_, _ = fmt.Fprint(w, `{"ok":false,"description":"api error","error_code":500}`)
 	}))
 	defer server.Close()
 

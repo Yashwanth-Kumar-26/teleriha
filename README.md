@@ -1,8 +1,11 @@
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 # TeleRiHa - Telegram Bot Framework for Go
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat-square&logo=go" alt="Go Version">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/Telegram%20API-v7.8-blue?style=flat-square" alt="Telegram API">
 </p>
 
@@ -14,11 +17,14 @@ Build production-grade Telegram bots with a clean, modular, and developer-friend
 |---------|-------------|
 | **Pure `net/http`** | Direct communication with Telegram Bot API using Go's built-in HTTP package |
 | **Zero Dependencies** | No wrappers or abstractions - just pure Telegram API calls |
-| **Gin-like API** | Familiar router and middleware patterns |
-| **Plugin System** | Extensible plugins: rate limiting, analytics, i18n, scheduling |
-| **State Management** | In-memory or Redis-backed storage with pluggable interface |
-| **Conversation Flows** | Multi-step conversation builder with state management |
-| **Inline Keyboards** | Fluent builder API for inline/reply keyboards |
+| **Fluent Application Builder** | Clean `ApplicationBuilder` & handler registry architecture |
+| **Stateful FSM Scene Manager** | Complex multi-step user conversations layered on top of Session Middleware |
+| **Composable Filters** | Flexible message filters supporting logical operators (`FilterAnd`, `FilterOr`, `FilterNot`) |
+| **Robust Job Queue** | Native background task executor supporting one-off and repeating jobs |
+| **Enterprise Payments** | Full support for standard payments and Telegram Stars (`XTR`), pre-checkout query routing |
+| **Telegram Gateway API** | Decoupled client for low-cost, direct verification/OTP messaging |
+| **Multipart Media Uploads** | Dynamic media detection and local file uploads |
+| **Inline Keyboards** | Fluent builder API for inline/reply keyboards and paginated interfaces |
 
 ## Quick Start
 
@@ -67,31 +73,47 @@ import (
 func main() {
     godotenv.Load()
 
-    b := bot.New(os.Getenv("BOT_TOKEN"))
+    // 1. Build the Application
+    app := bot.NewApplicationBuilder().
+        Token(os.Getenv("BOT_TOKEN")).
+        Opts(bot.WithLogger(log.Logger)).
+        Build()
 
-    // Add middleware
-    b.Router.Use(bot.Logger(log.Logger))
-    b.Router.Use(bot.Recover(log.Logger))
+    // 2. Add Middlewares
+    app.Bot.Router.Use(bot.Logger(log.Logger))
+    app.Bot.Router.Use(bot.Recover(log.Logger))
 
-    // Register handlers
-    b.Router.On("/start", handleStart)
-    b.Router.On("/help", handleHelp)
-    b.Router.Default(handleDefault)
+    // 3. Register Handlers
+    app.AddHandler(bot.CommandHandler("/start", handleStart))
+    app.AddHandler(bot.CommandHandler("/help", handleHelp))
+    
+    // Add filtering handler
+    app.AddHandler(bot.MessageHandler(bot.FilterPhoto(), func(ctx *bot.Context) error {
+        return ctx.Reply("Thanks for the photo!")
+    }))
 
-    // Start polling
-    b.StartPolling(1*time.Second, 30*time.Second)
+    // 4. Start background jobs
+    app.JobQueue.RunRepeating(func(ctx *bot.JobContext) error {
+        log.Info().Msg("Performing periodic maintenance...")
+        return nil
+    }, 1*time.Hour, time.Now())
+
+    // 5. Start long polling
+    if err := app.RunPolling(); err != nil {
+        log.Fatal().Err(err).Msg("Failed to run bot")
+    }
 }
 
 func handleStart(ctx *bot.Context) error {
+    // Store user session/state via Context Data
+    userData := ctx.UserData()
+    userData["visits"] = 1
+
     return ctx.Reply("Welcome! Type /help for commands.")
 }
 
 func handleHelp(ctx *bot.Context) error {
     return ctx.Reply("Available commands: /start, /help")
-}
-
-func handleDefault(ctx *bot.Context) error {
-    return ctx.Reply("Unknown command. Try /help")
 }
 ```
 
@@ -221,48 +243,160 @@ rk := bot.NewReplyKeyboardBuilder().
 ctx.Reply("Choose:", bot.WithReplyMarkup(rk))
 ```
 
-### Conversations
+### Composable Filters
 
-Multi-step conversation flows:
+TeleRiHa provides a robust message filtering system. You can compose complex logic using logical operators:
 
 ```go
-cm := b.ConversationManager
+// Match only photos from private chats
+photoPrivateFilter := bot.FilterAnd(bot.FilterPhoto(), bot.FilterPrivate())
 
-cb := bot.NewConversationBuilder(cm, "order")
-cb.Start(startHandler).
-    Step("waiting_name", waitForName).
-    Step("waiting_address", waitForAddress).
-    Step("confirm", confirmOrder).
-    Build()
+app.AddHandler(bot.MessageHandler(photoPrivateFilter, func(ctx *bot.Context) error {
+    return ctx.Reply("Received a private photo!")
+}))
 
-// In handler
-func waitForName(ctx *bot.Context, conv *bot.Conversation) error {
-    name := ctx.Text()
-    cm.SetData(ctx.SenderID(), "name", name)
-    cm.UpdateState(ctx.SenderID(), "waiting_address")
-    return ctx.Reply("Got it! Now enter your address:")
+// Match text messages OR videos
+textOrVideoFilter := bot.FilterOr(bot.FilterText(), bot.FilterVideo())
+```
+
+### Thread-Safe Context Data
+
+Context data provides easy state management inside individual user, chat, or global scope:
+
+```go
+func handleStart(ctx *bot.Context) error {
+    // User-specific data (persists per user ID)
+    userData := ctx.UserData()
+    userData["name"] = ctx.Sender.FirstName
+
+    // Chat-specific data (persists per chat ID)
+    chatData := ctx.ChatData()
+    chatData["active"] = true
+
+    // Global application data
+    botData := ctx.BotData()
+    botData["system_status"] = "online"
+    
+    return ctx.Reply("Context data stored!")
 }
 ```
 
-### State Storage
+### Job Queue
 
-Pluggable storage backends:
+The Job Queue handles scheduling background tasks:
 
 ```go
-// In-memory (default)
-store := store.NewMemoryStore()
+// Run once after 5 seconds
+app.JobQueue.RunOnce(func(ctx *bot.JobContext) error {
+    log.Info().Msg("One-off job running!")
+    return nil
+}, time.Now().Add(5*time.Second))
 
-// Redis (production)
-store := store.NewRedisStore(&redis.Options{
-    Addr: "localhost:6379",
+// Run repeating every 30 seconds
+app.JobQueue.RunRepeating(func(ctx *bot.JobContext) error {
+    log.Info().Msg("Repeating task executing...")
+    return nil
+}, 30*time.Second, time.Now())
+```
+
+### FSM Scene Manager
+
+For multi-step conversation flows (like ordering or onboarding), you can register scenes:
+
+```go
+import "github.com/Yashwanth-Kumar-26/teleriha/plugins/scenes"
+
+// 1. Create a scene manager
+sm := scenes.NewSceneManager()
+
+// 2. Define scene steps
+onboardingScene := scenes.NewScene("onboarding",
+    func(ctx *bot.Context) error {
+        return ctx.Reply("Welcome! What is your name?")
+    },
+    func(ctx *bot.Context) error {
+        name := ctx.Text()
+        ctx.UserData()["name"] = name
+        return ctx.Reply("Great! How old are you?")
+    },
+    func(ctx *bot.Context) error {
+        age := ctx.Text()
+        ctx.UserData()["age"] = age
+        
+        // Scene automatically completes after last step
+        return ctx.Reply("Registration complete!")
+    },
+)
+sm.AddScene(onboardingScene)
+
+// 3. Register scenes middleware
+app.Bot.Router.Use(sm.Middleware())
+
+// 4. Enter user into the scene from a command
+app.AddHandler(bot.CommandHandler("/register", func(ctx *bot.Context) error {
+    return sm.Enter(ctx, "onboarding")
+}))
+```
+
+### Stateful Session Storage
+
+Pluggable storage backends backing persistent state and scenes:
+
+```go
+// SQLite backend for persistent sessions
+sqliteStore, _ := store.NewSQLiteStore("bot.db")
+
+app := bot.NewApplicationBuilder().
+    Token(token).
+    Opts(bot.WithStore(sqliteStore)). // Persists scenes state
+    Build()
+
+// Attach session middleware
+app.Bot.Router.Use(session.Middleware(sqliteStore, 24*time.Hour))
+```
+
+### Enterprise Payments & Telegram Stars (`XTR`)
+
+Fully supports standard currency billing and Telegram Stars:
+
+```go
+app.AddHandler(bot.CommandHandler("/invoice", func(ctx *bot.Context) error {
+    prices := []bot.LabeledPrice{
+        {Label: "Premium access", Amount: 100}, // 100 Stars
+    }
+    
+    // Send invoice using Telegram Stars (XTR)
+    _, err := app.Bot.SendInvoice(
+        ctx.ChatID(),
+        "Premium Upgrade",
+        "Unlock premium enterprise capabilities.",
+        "payload_upgrade",
+        "", // Empty provider token for Telegram Stars
+        "XTR",
+        prices,
+    )
+    return err
+}))
+
+// Answer Pre-Checkout query
+app.AddHandler(bot.PreCheckoutQueryHandler(func(ctx *bot.Context) error {
+    return app.Bot.AnswerPreCheckoutQuery(ctx.PreCheckoutQuery.ID, true, "")
+}))
+```
+
+### Telegram Gateway API (OTP/Verification)
+
+Decoupled client to send direct OTP/verification text messages at cost:
+
+```go
+import "github.com/Yashwanth-Kumar-26/teleriha/pkg/gateway"
+
+client := gateway.NewClient("GATEWAY_TOKEN")
+
+// Verification check request
+result, err := client.SendVerificationMessage("+1234567890", gateway.VerificationOptions{
+    CodeLength: 6,
 })
-
-// Namespaced stores
-userStore := store.NewUserStore(store)
-userStore.Set(userID, "preferences", data, time.Hour)
-
-chatStore := store.NewChatStore(store)
-sessionStore := store.NewSessionStore(store, 24*time.Hour)
 ```
 
 ## Plugins
@@ -310,17 +444,6 @@ sched.AddJob("daily", "0 0 * * *", func() error {
 })
 b.PluginRegistry.RegisterPlugin(sched)
 ```
-
-## Comparison with Alternatives
-
-| Feature | TeleRiHa | go-telegram-bot-api | grammY| telebot |
-|---------|----------|---------------------|------|---------|
-| Pure net/http | Yes | No | No | No |
-| Zero deps | Yes | No | No | No |
-| Gin-like API | Yes | No | No | Yes |
-| Plugin system | Yes | No | Yes | No |
-| Built-in store | Yes | No | No | No |
-| Conversation builder | Yes | No | Yes | No |
 
 ## Project Structure
 
@@ -396,4 +519,4 @@ Contributions are welcome! See CONTRIBUTING.md for guidelines.
 
 ## License
 
-TeleRiHa is released under the MIT License. See LICENSE for details.
+TeleRiHa is released under the Apache License 2.0. See LICENSE for details.

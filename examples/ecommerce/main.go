@@ -121,7 +121,7 @@ func main() {
 }
 
 func handleStart(ctx *bot.Context) error {
-	message := `🏪 *Welcome to TeleShop!* 🏪
+	message := ` *Welcome to TeleShop!* 
 
 Your personal shopping assistant on Telegram. Browse our catalog, add items to your cart, and checkout with ease.
 
@@ -129,12 +129,12 @@ Use /help to see all commands.`
 
 	kb := bot.NewInlineKeyboardBuilder().
 		AddRow(
-			bot.InlineButton("🛍️ Browse Products", "command:products"),
-			bot.InlineButton("📁 Categories", "command:categories"),
+			bot.InlineButton("Browse Products", "command:products"),
+			bot.InlineButton("Categories", "command:categories"),
 		).
 		AddRow(
-			bot.InlineButton("🛒 My Cart", "command:cart"),
-			bot.InlineButton("❓ Help", "command:help"),
+			bot.InlineButton("My Cart", "command:cart"),
+			bot.InlineButton("Help", "command:help"),
 		).
 		Build()
 
@@ -143,9 +143,9 @@ Use /help to see all commands.`
 }
 
 func handleHelp(ctx *bot.Context) error {
-	helpText := `📋 *Available Commands:*
+	helpText := ` *Available Commands:*
 
-🛍️ *Shopping:*
+️ *Shopping:*
 /products - Browse all products
 /categories - View product categories
 /category <name> - View products in a category
@@ -154,7 +154,7 @@ func handleHelp(ctx *bot.Context) error {
 /checkout - Checkout and place order
 /clear - Clear your shopping cart
 
-💡 *Tips:*
+ *Tips:*
 - Use buttons for quick navigation
 - Add items to cart and checkout when ready
 - Your cart is saved for this session`
@@ -169,11 +169,11 @@ func handleProducts(ctx *bot.Context) error {
 		return err
 	}
 
-	message := "*📦 Available Products:*\n\n"
+	message := "* Available Products:*\n\n"
 	count := 0
 	for id, product := range catalog {
 		count++
-		message += fmt.Sprintf("🏷️ *%s*\n%s - $%.2f\n[Add to Cart](/add_%s)\n\n",
+		message += fmt.Sprintf("️ *%s*\n%s - $%.2f\n[Add to Cart](/add_%s)\n\n",
 			product.Name, product.Description, product.Price, id)
 		if count >= 5 {
 			message += "_and more... use /category to filter_\n"
@@ -200,7 +200,7 @@ func handleCategories(ctx *bot.Context) error {
 		return err
 	}
 
-	message := "*📁 Product Categories:*\n"
+	message := "* Product Categories:*\n"
 
 	kb := bot.NewInlineKeyboardBuilder()
 	for category := range categories {
@@ -234,14 +234,14 @@ func handleCategory(ctx *bot.Context) error {
 		return err
 	}
 
-	message := fmt.Sprintf("*📦 Products in %s:*\n\n", category)
+	message := fmt.Sprintf("* Products in %s:*\n\n", category)
 	for _, product := range products {
-		message += fmt.Sprintf("🏷️ *%s*\n%.2f USD\n[Add to Cart](command:add_%s)\n\n",
+		message += fmt.Sprintf("*%s*\n%.2f USD\n[Add to Cart](command:add_%s)\n\n",
 			product.Name, product.Price, product.ID)
 	}
 
 	kb := bot.NewInlineKeyboardBuilder().
-		AddRow(bot.InlineButton("⬅️ Back to Categories", "command:categories")).
+		AddRow(bot.InlineButton("Back to Categories", "command:categories")).
 		Build()
 
 	_, err := ctx.Reply(message, bot.WithParseMode("Markdown"), bot.WithReplyMarkup(kb))
@@ -265,16 +265,16 @@ func handleProductCallback(ctx *bot.Context) error {
 
 	kb := bot.NewInlineKeyboardBuilder().
 		AddRow(
-			bot.InlineButton("➕ Add to Cart", "add:"+product.ID+":1"),
+			bot.InlineButton("Add to Cart", "add:"+product.ID+":1"),
 		).
 		AddRow(
-			bot.InlineButton("🔙 Back", "command:products"),
+			bot.InlineButton("Back", "command:products"),
 		).
 		Build()
 
 	// Edit the original message
 	_, err := ctx.EditMessageText(message,
-		bot.WithParseMode("Markdown"),
+		bot.WithNewParseMode("Markdown"),
 		bot.WithNewReplyMarkup(kb))
 	if err != nil {
 		// If we can't edit, just answer the callback
@@ -304,19 +304,19 @@ func handleCategoryCallback(ctx *bot.Context) error {
 		return ctx.AnswerCallback("No products in this category", true)
 	}
 
-	message := fmt.Sprintf("*📦 %s:*\n\n", category)
+	message := fmt.Sprintf("* %s:*\n\n", category)
 	for _, product := range products {
-		message += fmt.Sprintf("🏷️ *%s* - $%.2f\n[View](product:%s)\n\n",
+		message += fmt.Sprintf("️ *%s* - $%.2f\n[View](product:%s)\n\n",
 			product.Name, product.Price, product.ID)
 	}
 
 	kb := bot.NewInlineKeyboardBuilder().
-		AddRow(bot.InlineButton("⬅️ Back", "command:categories")).
+		AddRow(bot.InlineButton("Back", "command:categories")).
 		Build()
 
 	// Edit the original message
 	_, err := ctx.EditMessageText(message,
-		bot.WithParseMode("Markdown"),
+		bot.WithNewParseMode("Markdown"),
 		bot.WithNewReplyMarkup(kb))
 	if err != nil {
 		return ctx.AnswerCallback("Showing category products", false)
@@ -360,7 +360,7 @@ func handleAddToCart(ctx *bot.Context) error {
 	// Add product to cart
 	carts[userID].Items[productID] += quantity
 
-	_, err := ctx.Reply(fmt.Sprintf("✅ Added %d x *%s* to your cart.\nTotal: $%.2f",
+	_, err := ctx.Reply(fmt.Sprintf(" Added %d x *%s* to your cart.\nTotal: $%.2f",
 		quantity, product.Name, product.Price*float64(quantity)),
 		bot.WithParseMode("Markdown"))
 	return err
@@ -371,11 +371,11 @@ func handleViewCart(ctx *bot.Context) error {
 	cart := carts[userID]
 
 	if cart == nil || len(cart.Items) == 0 {
-		_, err := ctx.Reply("🛒 Your cart is empty. Use /products to add items.")
+		_, err := ctx.Reply(" Your cart is empty. Use /products to add items.")
 		return err
 	}
 
-	message := "*🛒 Your Shopping Cart:*\n\n"
+	message := "* Your Shopping Cart:*\n\n"
 	total := 0.0
 	count := 0
 
@@ -391,12 +391,12 @@ func handleViewCart(ctx *bot.Context) error {
 			quantity, product.Name, product.Price, itemTotal)
 	}
 
-	message += fmt.Sprintf("\n📊 *Summary:* %d items, *Total: $%.2f*\n\n", count, total)
+	message += fmt.Sprintf("\n *Summary:* %d items, *Total: $%.2f*\n\n", count, total)
 
 	kb := bot.NewInlineKeyboardBuilder().
 		AddRow(
-			bot.InlineButton("💳 Checkout", "checkout:confirm"),
-			bot.InlineButton("🗑️ Clear Cart", "clear:confirm"),
+			bot.InlineButton(" Checkout", "checkout:confirm"),
+			bot.InlineButton("️ Clear Cart", "clear:confirm"),
 		).
 		AddRow(
 			bot.InlineButton("⬅️ Continue Shopping", "command:products"),
@@ -412,7 +412,7 @@ func handleCheckout(ctx *bot.Context) error {
 	cart := carts[userID]
 
 	if cart == nil || len(cart.Items) == 0 {
-		_, err := ctx.Reply("🛒 Your cart is empty. Add items before checking out.")
+		_, err := ctx.Reply(" Your cart is empty. Add items before checking out.")
 		return err
 	}
 
@@ -425,12 +425,12 @@ func handleCheckout(ctx *bot.Context) error {
 		total += product.Price * float64(quantity)
 	}
 
-	message := fmt.Sprintf("*💳 Checkout Confirmation*\n\nOrder Total: *$%.2f*\n\nConfirm your order?", total)
+	message := fmt.Sprintf("* Checkout Confirmation*\n\nOrder Total: *$%.2f*\n\nConfirm your order?", total)
 
 	kb := bot.NewInlineKeyboardBuilder().
 		AddRow(
-			bot.InlineButton("✅ Confirm", "checkout:place_order"),
-			bot.InlineButton("❌ Cancel", "checkout:cancel"),
+			bot.InlineButton(" Confirm", "checkout:place_order"),
+			bot.InlineButton(" Cancel", "checkout:cancel"),
 		).
 		Build()
 
@@ -442,7 +442,7 @@ func handleClearCart(ctx *bot.Context) error {
 	userID := ctx.SenderID()
 
 	if carts[userID] == nil || len(carts[userID].Items) == 0 {
-		_, err := ctx.Reply("🛒 Your cart is already empty.")
+		_, err := ctx.Reply("Your cart is already empty.")
 		return err
 	}
 
@@ -450,8 +450,8 @@ func handleClearCart(ctx *bot.Context) error {
 
 	kb := bot.NewInlineKeyboardBuilder().
 		AddRow(
-			bot.InlineButton("✅ Yes, Clear", "clear:confirmed"),
-			bot.InlineButton("❌ Cancel", "clear:cancel"),
+			bot.InlineButton("Yes, Clear", "clear:confirmed"),
+			bot.InlineButton("Cancel", "clear:cancel"),
 		).
 		Build()
 
@@ -483,9 +483,9 @@ func handleCartCallback(ctx *bot.Context) error {
 				// Clear cart
 				carts[userID] = &Cart{Items: make(map[string]int)}
 
-				return ctx.AnswerCallback(fmt.Sprintf("✅ Order placed! Total: $%.2f", total), true)
+				return ctx.AnswerCallback(fmt.Sprintf("Order placed! Total: $%.2f", total), true)
 			}
-			return ctx.AnswerCallback("❌ Cart is empty", true)
+			return ctx.AnswerCallback("Cart is empty", true)
 
 		case "confirm":
 			return handleCheckout(ctx)
@@ -503,7 +503,7 @@ func handleCartCallback(ctx *bot.Context) error {
 		switch action {
 		case "confirmed":
 			carts[userID] = &Cart{Items: make(map[string]int)}
-			return ctx.AnswerCallback("✅ Cart cleared", true)
+			return ctx.AnswerCallback("Cart cleared", true)
 
 		case "cancel":
 			return ctx.AnswerCallback("Cart not cleared", true)

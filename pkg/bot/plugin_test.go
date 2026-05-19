@@ -92,11 +92,11 @@ func TestBasePlugin(t *testing.T) {
 	assert.False(t, p.IsActive())
 
 	b := New("token")
-	p.Init(b)
+	_ = p.Init(b)
 	assert.Equal(t, b, p.Bot())
 	assert.True(t, p.IsActive())
 
-	p.Stop()
+	_ = p.Stop()
 	assert.False(t, p.IsActive())
 }
 

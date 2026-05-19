@@ -53,7 +53,7 @@ func NewStringStore(store Store) StringStore {
 
 // GetString retrieves a string value from the store.
 func (s *stringStoreWrapper) GetString(key string) (string, error) {
-	data, err := s.Store.Get(key)
+	data, err := s.Get(key)
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +62,7 @@ func (s *stringStoreWrapper) GetString(key string) (string, error) {
 
 // SetString stores a string value with an optional expiration time.
 func (s *stringStoreWrapper) SetString(key string, value string, ttl time.Duration) error {
-	return s.Store.Set(key, []byte(value), ttl)
+	return s.Set(key, []byte(value), ttl)
 }
 
 // NamespaceStore provides a namespaced view of a store.

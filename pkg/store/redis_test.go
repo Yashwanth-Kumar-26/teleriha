@@ -44,7 +44,8 @@ func TestRedisStore(t *testing.T) {
 	assert.Error(t, err)
 
 	// Test Clear
-	s.Set("key3", []byte("value3"), 0)
+	err = s.Set("key3", []byte("value3"), 0)
+	assert.NoError(t, err)
 	err = s.Clear()
 	assert.NoError(t, err)
 	assert.False(t, s.Exists("key3"))

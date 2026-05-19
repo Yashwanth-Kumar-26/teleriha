@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -376,7 +377,7 @@ func TestWithContext(t *testing.T) {
 	ctx := &Context{}
 
 	// WithContext should not panic and return a context
-	newCtx := ctx.WithContext(nil)
+	newCtx := ctx.WithContext(context.TODO())
 	assert.NotNil(t, newCtx)
 }
 

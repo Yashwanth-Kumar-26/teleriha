@@ -8,12 +8,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/Yashwanth-Kumar-26/teleriha/pkg/store"
 )
 
 // Bot represents the core Telegram bot instance.
@@ -43,8 +48,9 @@ type Bot struct {
 	// isRunning indicates if the bot is currently running
 	isRunning bool
 
-	// stopChan allows graceful shutdown
-	stopChan chan struct{}
+	// stopChan allows graceful shutdown; chan bool lets tests signal
+	// without closing, avoiding races with stop-during-SetupWebhook.
+	stopChan chan bool
 
 	// plugins stores loaded plugins
 	plugins map[string]Plugin
@@ -54,6 +60,12 @@ type Bot struct {
 
 	// ConversationManager manages conversations
 	ConversationManager *ConversationManager
+
+	// Scoped data storage
+	userData map[int64]map[string]interface{}
+	chatData map[int64]map[string]interface{}
+	botData  map[string]interface{}
+	dataMu   sync.RWMutex
 }
 
 // BotOption is a function that configures a Bot.
@@ -80,6 +92,15 @@ func WithLogger(logger zerolog.Logger) BotOption {
 	}
 }
 
+// WithStore attaches a store-backed persistent ConversationManager.
+// Pass a *store.RedisStore for Redis-backed persistence or a
+// *store.MemoryStore for in-process testing.
+func WithStore(s store.Store) BotOption {
+	return func(b *Bot) {
+		b.ConversationManager = NewPersistedConversationManager(b.ConversationManager, s).ConversationManager
+	}
+}
+
 // New creates a new Bot instance with the given token and options.
 func New(token string, opts ...BotOption) *Bot {
 	b := &Bot{
@@ -90,10 +111,13 @@ func New(token string, opts ...BotOption) *Bot {
 		Router:            NewRouter(),
 		updateOffset:      0,
 		isRunning:         false,
-		stopChan:          make(chan struct{}),
+		stopChan:          make(chan bool, 1),
 		plugins:           make(map[string]Plugin),
 		PluginRegistry:    NewPluginRegistry(),
 		ConversationManager: NewConversationManager(),
+		userData:          make(map[int64]map[string]interface{}),
+		chatData:          make(map[int64]map[string]interface{}),
+		botData:           make(map[string]interface{}),
 	}
 
 	for _, opt := range opts {
@@ -221,7 +245,7 @@ func (b *Bot) pollUpdates(timeout time.Duration) error {
 	params.Set("offset", fmt.Sprintf("%d", b.updateOffset+1))
 	b.mu.Unlock()
 	params.Set("timeout", fmt.Sprintf("%d", int(timeout.Seconds())))
-	params.Set("allowed_updates", "message,callback_query,inline_query,chosen_inline_result,channel_post,edited_message,edited_channel_post")
+	params.Set("allowed_updates", "message,callback_query,inline_query,chosen_inline_result,channel_post,edited_message,edited_channel_post,pre_checkout_query,shipping_query,poll,poll_answer,chat_member,my_chat_member,chat_join_request")
 	url.RawQuery = params.Encode()
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url.String(), nil)
@@ -233,7 +257,7 @@ func (b *Bot) pollUpdates(timeout time.Duration) error {
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -280,6 +304,20 @@ func (b *Bot) processUpdate(update Update) {
 		b.Router.HandleInlineQuery(ctx, *update.InlineQuery)
 	case update.ChosenInlineResult != nil:
 		b.Router.HandleChosenInlineResult(ctx, *update.ChosenInlineResult)
+	case update.PreCheckoutQuery != nil:
+		b.Router.HandlePreCheckoutQuery(ctx, *update.PreCheckoutQuery)
+	case update.ShippingQuery != nil:
+		b.Router.HandleShippingQuery(ctx, *update.ShippingQuery)
+	case update.Poll != nil:
+		b.Router.HandlePoll(ctx, *update.Poll)
+	case update.PollAnswer != nil:
+		b.Router.HandlePollAnswer(ctx, *update.PollAnswer)
+	case update.ChatMember != nil:
+		b.Router.HandleChatMember(ctx, *update.ChatMember)
+	case update.MyChatMember != nil:
+		b.Router.HandleMyChatMember(ctx, *update.MyChatMember)
+	case update.ChatJoinRequest != nil:
+		b.Router.HandleChatJoinRequest(ctx, *update.ChatJoinRequest)
 	default:
 		b.Logger.Warn().Interface("update", update).Msg("Received unknown update type")
 	}
@@ -309,6 +347,27 @@ func (b *Bot) DeleteWebhook() error {
 	return err
 }
 
+// SetupWebhook registers the given URL as a Telegram webhook and then starts the
+// local HTTP server to receive updates. It combines SetWebhook and StartWebhook
+// into a single call so callers can configure and launch a webhook-bound bot in
+// one step.
+// Returns ctx.Err() if the context is cancelled while the server is running.
+func (b *Bot) SetupWebhook(ctx context.Context, url string) error {
+	if err := b.SetWebhook(url, 100, nil); err != nil {
+		return fmt.Errorf("failed to set webhook: %w", err)
+	}
+
+	// StartWebhook blocks until Stop() is called; run it in a goroutine so that
+	// the context select below can detect cancellation.
+	go func() {
+		_ = b.StartWebhook("/webhook", 8080)
+	}()
+
+	// Wait for context cancellation and propagate it as the return error.
+	<-ctx.Done()
+	return ctx.Err()
+}
+
 // GetMe returns information about the bot.
 func (b *Bot) GetMe() (*User, error) {
 	var user User
@@ -316,16 +375,111 @@ func (b *Bot) GetMe() (*User, error) {
 	return &user, err
 }
 
-// callMethod makes a generic Telegram API call.
+// callMethod makes a generic Telegram API call with retry logic.
 func (b *Bot) callMethod(method string, params map[string]interface{}, result interface{}) ([]byte, error) {
+	return b.callMethodWithRetry(method, params, result, 3)
+}
+
+// callMethodWithRetry attempts to call the API with retries for transient errors.
+func (b *Bot) callMethodWithRetry(method string, params map[string]interface{}, result interface{}, maxRetries int) ([]byte, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		body, err := b.doCallMethod(method, params, result)
+		if err == nil {
+			return body, nil
+		}
+
+		lastErr = err
+
+		// Check if error is retryable (429 Too Many Requests, 5xx errors)
+		if !isRetryableError(err) {
+			return nil, err
+		}
+
+		// Exponential backoff: 1s, 2s, 4s
+		if attempt < maxRetries-1 {
+			backoff := time.Duration(1<<attempt) * time.Second
+			b.Logger.Debug().
+				Err(err).
+				Int("attempt", attempt+1).
+				Dur("backoff", backoff).
+				Str("method", method).
+				Msg("Retrying API call")
+			time.Sleep(backoff)
+		}
+	}
+
+	return nil, lastErr
+}
+
+// isRetryableError determines if an error should trigger a retry.
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	// Retry on 429 (rate limit) or 5xx (server errors)
+	return strings.Contains(errStr, "status code 429") ||
+		strings.Contains(errStr, "status code 5") ||
+		strings.Contains(errStr, "status code 503")
+}
+
+// doCallMethod performs the actual HTTP call.
+func (b *Bot) doCallMethod(method string, params map[string]interface{}, result interface{}) ([]byte, error) {
 	url := b.buildURL(method)
 
 	// Add params to URL for GET requests, or to body for POST
 	var bodyReader io.Reader
-	if params != nil && len(params) > 0 {
-		// Check if we need multipart for file uploads
-		if _, hasFile := params["chat_id"]; hasFile {
-			// For simplicity, use application/json for most requests
+	contentType := "application/json"
+
+	if len(params) > 0 {
+		isMultipart := false
+		for _, v := range params {
+			if _, ok := v.(io.Reader); ok {
+				isMultipart = true
+				break
+			}
+		}
+
+		if isMultipart {
+			body := &bytes.Buffer{}
+			writer := multipart.NewWriter(body)
+			for k, v := range params {
+				if r, ok := v.(io.Reader); ok {
+					filename := "file"
+					if f, ok := v.(*os.File); ok {
+						filename = filepath.Base(f.Name())
+					}
+					part, err := writer.CreateFormFile(k, filename)
+					if err != nil {
+						return nil, fmt.Errorf("failed to create form file: %w", err)
+					}
+					if _, err := io.Copy(part, r); err != nil {
+						return nil, fmt.Errorf("failed to copy file data: %w", err)
+					}
+				} else {
+					var valStr string
+					switch val := v.(type) {
+					case string:
+						valStr = val
+					case int, int64, float64, bool:
+						valStr = fmt.Sprintf("%v", val)
+					default:
+						b, _ := json.Marshal(val)
+						valStr = string(b)
+					}
+					if err := writer.WriteField(k, valStr); err != nil {
+						return nil, fmt.Errorf("failed to write form field: %w", err)
+					}
+				}
+			}
+			if err := writer.Close(); err != nil {
+				return nil, fmt.Errorf("failed to close multipart writer: %w", err)
+			}
+			bodyReader = body
+			contentType = writer.FormDataContentType()
+		} else {
 			jsonBody, err := json.Marshal(params)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal params: %w", err)
@@ -340,7 +494,7 @@ func (b *Bot) callMethod(method string, params map[string]interface{}, result in
 	if bodyReader != nil {
 		req, err = http.NewRequestWithContext(context.Background(), http.MethodPost, url.String(), bodyReader)
 		if err == nil {
-			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", contentType)
 		}
 	} else {
 		req, err = http.NewRequestWithContext(context.Background(), http.MethodGet, url.String(), nil)
@@ -354,7 +508,7 @@ func (b *Bot) callMethod(method string, params map[string]interface{}, result in
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

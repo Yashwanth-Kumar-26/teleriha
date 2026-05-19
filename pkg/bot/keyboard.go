@@ -315,7 +315,7 @@ func PaginationKeyboard(prevCallback, nextCallback string, currentPage, totalPag
 
 	// Next button
 	if currentPage < totalPages {
-		buttons = append(buttons, InlineButton("Next ➡️", nextCallback))
+		buttons = append(buttons, InlineButton("Next ️", nextCallback))
 	}
 
 	return NewInlineKeyboard(buttons)

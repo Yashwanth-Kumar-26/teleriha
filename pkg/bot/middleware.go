@@ -217,7 +217,23 @@ func (c *Context) isBotOwner() bool {
 	return false
 }
 
-// Chain combines multiple middlewares into one.
+// Chain composes middlewares into a single middleware. Middlewares are applied
+// from outer-most to inner-most — the first middleware listed wraps all others.
+//
+// Correct ordering (outer → inner):
+//  1. Logger   — logs entry/exit, catches everything
+//  2. Recover  — catches panics after logger has started
+//  3. RateLimit— rejects fast, before expensive processing
+//  4. Auth     — validates after rate limiting
+//  5. OnlyPrivate — restricts after all checks pass
+//
+// Usage:
+//   b.Router.Use(bot.Chain(
+//       bot.Logger(logger),          // outer: logs first
+//       bot.Recover(logger),         // catches panics
+//       bot.RateLimitMiddleware(rl), // rejects bad traffic
+//       bot.IsAdmin(),               // auth after all checks
+//   ))
 func Chain(middlewares ...Middleware) Middleware {
 	return func(next Handler) Handler {
 		finalHandler := next

@@ -52,7 +52,7 @@ cd cmd/riha && go build -o riha .
    git commit -m "feat: add new feature"
    ```
 
-## Code Style
+## Code   
 
 - Use `gofmt` for formatting
 - Follow [Effective Go](https://golang.org/doc/effective_go)

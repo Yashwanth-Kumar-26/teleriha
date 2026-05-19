@@ -184,7 +184,7 @@ func (s *PrefixedMemoryStore) Clear() error {
 	keys := s.store.Keys()
 	for _, key := range keys {
 		if len(key) >= len(s.prefix) && key[:len(s.prefix)] == s.prefix {
-			s.store.Delete(key)
+			_ = s.store.Delete(key)
 		}
 	}
 	return nil

@@ -23,7 +23,7 @@ type MockAI struct{}
 
 func (m *MockAI) GenerateResponse(prompt string) (string, error) {
 	// Simple mock logic: echo back with some "AI" flavor
-	return fmt.Sprintf("🤖 AI Response to '%s':\n\nI have analyzed your input and concluded that you are asking something interesting! (Mock Response)", prompt), nil
+	return fmt.Sprintf(" AI Response to '%s':\n\nI have analyzed your input and concluded that you are asking something interesting! (Mock Response)", prompt), nil
 }
 
 func main() {

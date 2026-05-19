@@ -12,7 +12,7 @@ import (
 
 func TestBot_EditMessageCaption(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"caption":"new caption"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"caption":"new caption"}}`)
 	}))
 	defer server.Close()
 
@@ -24,7 +24,7 @@ func TestBot_EditMessageCaption(t *testing.T) {
 
 func TestBot_SendVideo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"video":{"file_id":"v1"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"video":{"file_id":"v1"}}}`)
 	}))
 	defer server.Close()
 
@@ -36,7 +36,7 @@ func TestBot_SendVideo(t *testing.T) {
 
 func TestBot_SendAudio(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"audio":{"file_id":"a1"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"audio":{"file_id":"a1"}}}`)
 	}))
 	defer server.Close()
 
@@ -48,7 +48,7 @@ func TestBot_SendAudio(t *testing.T) {
 
 func TestBot_SendVoice(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"voice":{"file_id":"vo1"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"voice":{"file_id":"vo1"}}}`)
 	}))
 	defer server.Close()
 
@@ -60,7 +60,7 @@ func TestBot_SendVoice(t *testing.T) {
 
 func TestBot_SendContact(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"contact":{"phone_number":"123","first_name":"n"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"contact":{"phone_number":"123","first_name":"n"}}}`)
 	}))
 	defer server.Close()
 
@@ -72,19 +72,19 @@ func TestBot_SendContact(t *testing.T) {
 
 func TestBot_SendDice(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"dice":{"emoji":"🎲","value":6}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"dice":{"emoji":"","value":6}}}`)
 	}))
 	defer server.Close()
 
 	b := New("token", WithBaseURL(server.URL))
-	msg, err := b.SendDice(123, "🎲")
+	msg, err := b.SendDice(123, "")
 	assert.NoError(t, err)
 	assert.Equal(t, 6, msg.Dice.Value)
 }
 
 func TestBot_GetChatMember(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"status":"member","user":{"id":123,"first_name":"n"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"status":"member","user":{"id":123,"first_name":"n"}}}`)
 	}))
 	defer server.Close()
 
@@ -96,7 +96,7 @@ func TestBot_GetChatMember(t *testing.T) {
 
 func TestBot_DeleteMyCommands(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 
@@ -108,18 +108,18 @@ func TestBot_DeleteMyCommands(t *testing.T) {
 func TestBot_SendDocument_File(t *testing.T) {
 	f, err := os.CreateTemp("", "test.txt")
 	assert.NoError(t, err)
-	defer os.Remove(f.Name())
-	f.Write([]byte("test data"))
-	f.Close()
+	defer func() { _ = os.Remove(f.Name()) }()
+	_, _ = f.Write([]byte("test data"))
+	_ = f.Close()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"document":{"file_id":"d1"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"document":{"file_id":"d1"}}}`)
 	}))
 	defer server.Close()
 
 	b := New("token", WithBaseURL(server.URL))
 	f2, _ := os.Open(f.Name())
-	defer f2.Close()
+	defer func() { _ = f2.Close() }()
 	msg, err := b.SendDocument(123, f2, "caption")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(456), msg.MessageID)
@@ -127,7 +127,7 @@ func TestBot_SendDocument_File(t *testing.T) {
 
 func TestBot_GetChatAdministrators(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":[{"status":"creator","user":{"id":123,"first_name":"n"}}]}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":[{"status":"creator","user":{"id":123,"first_name":"n"}}]}`)
 	}))
 	defer server.Close()
 

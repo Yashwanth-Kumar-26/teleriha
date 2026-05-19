@@ -13,7 +13,7 @@ import (
 func TestBot_EditMessageText(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/editMessageText", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"text":"edited"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"text":"edited"}}`)
 	}))
 	defer server.Close()
 
@@ -27,7 +27,7 @@ func TestBot_EditMessageText(t *testing.T) {
 func TestBot_DeleteMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/deleteMessage", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 
@@ -39,7 +39,7 @@ func TestBot_DeleteMessage(t *testing.T) {
 func TestBot_AnswerCallbackQuery(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/answerCallbackQuery", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 
@@ -51,7 +51,7 @@ func TestBot_AnswerCallbackQuery(t *testing.T) {
 func TestBot_SendPhoto(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/sendPhoto", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"photo":[{"file_id":"p1"}]}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"photo":[{"file_id":"p1"}]}}`)
 	}))
 	defer server.Close()
 
@@ -65,21 +65,21 @@ func TestBot_SendPhoto_File(t *testing.T) {
 	// Create a temp file
 	f, err := os.CreateTemp("", "test.png")
 	assert.NoError(t, err)
-	defer os.Remove(f.Name())
-	f.Write([]byte("fake image data"))
-	f.Close()
+	defer func() { _ = os.Remove(f.Name()) }()
+	_, _ = f.Write([]byte("fake image data"))
+	_ = f.Close()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/sendPhoto", r.URL.Path)
 		assert.Contains(t, r.Header.Get("Content-Type"), "multipart/form-data")
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"photo":[{"file_id":"p1"}]}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"photo":[{"file_id":"p1"}]}}`)
 	}))
 	defer server.Close()
 
 	b := New("token", WithBaseURL(server.URL))
 	
 	f2, _ := os.Open(f.Name())
-	defer f2.Close()
+	defer func() { _ = f2.Close() }()
 	
 	msg, err := b.SendPhoto(123, f2, "caption")
 	assert.NoError(t, err)
@@ -89,7 +89,7 @@ func TestBot_SendPhoto_File(t *testing.T) {
 func TestBot_SendDocument(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/sendDocument", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"document":{"file_id":"d1"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"document":{"file_id":"d1"}}}`)
 	}))
 	defer server.Close()
 
@@ -102,7 +102,7 @@ func TestBot_SendDocument(t *testing.T) {
 func TestBot_SendSticker(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/sendSticker", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"sticker":{"file_id":"s1"}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"sticker":{"file_id":"s1"}}}`)
 	}))
 	defer server.Close()
 
@@ -115,7 +115,7 @@ func TestBot_SendSticker(t *testing.T) {
 func TestBot_SendLocation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/sendLocation", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"location":{"latitude":1.0,"longitude":2.0}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"location":{"latitude":1.0,"longitude":2.0}}}`)
 	}))
 	defer server.Close()
 
@@ -128,7 +128,7 @@ func TestBot_SendLocation(t *testing.T) {
 func TestBot_SendPoll(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/sendPoll", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"poll":{"id":"1","question":"q","options":[]}}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"poll":{"id":"1","question":"q","options":[]}}}`)
 	}))
 	defer server.Close()
 
@@ -141,7 +141,7 @@ func TestBot_SendPoll(t *testing.T) {
 func TestBot_ForwardMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/forwardMessage", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":789}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":789}}`)
 	}))
 	defer server.Close()
 
@@ -154,7 +154,7 @@ func TestBot_ForwardMessage(t *testing.T) {
 func TestBot_GetChat(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/getChat", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"id":123,"type":"private"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"id":123,"type":"private"}}`)
 	}))
 	defer server.Close()
 
@@ -167,7 +167,7 @@ func TestBot_GetChat(t *testing.T) {
 func TestBot_SetMyCommands(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/setMyCommands", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 
@@ -179,7 +179,7 @@ func TestBot_SetMyCommands(t *testing.T) {
 func TestBot_GetMyCommands(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/getMyCommands", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":[{"command":"start","description":"start"}]}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":[{"command":"start","description":"start"}]}`)
 	}))
 	defer server.Close()
 
@@ -192,7 +192,7 @@ func TestBot_GetMyCommands(t *testing.T) {
 func TestBot_GetWebhookInfo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/getWebhookInfo", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":{"url":"https://example.com"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"url":"https://example.com"}}`)
 	}))
 	defer server.Close()
 
@@ -205,7 +205,7 @@ func TestBot_GetWebhookInfo(t *testing.T) {
 func TestBot_AnswerInlineQuery(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/bottoken/answerInlineQuery", r.URL.Path)
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 

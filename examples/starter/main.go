@@ -29,31 +29,31 @@ func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	// Create a new bot
-	b := bot.New(token, bot.WithLogger(log.Logger))
+	// Build the Application
+	app := bot.NewApplicationBuilder().
+		Token(token).
+		Opts(bot.WithLogger(log.Logger)).
+		Build()
 
 	// Add middleware
-	b.Router.Use(bot.Logger(log.Logger))
-	b.Router.Use(bot.Recover(log.Logger))
+	app.Bot.Router.Use(bot.Logger(log.Logger))
+	app.Bot.Router.Use(bot.Recover(log.Logger))
 
 	// Register command handlers
-	b.Router.On("/start", handleStart)
-	b.Router.On("/help", handleHelp)
-	b.Router.On("/echo", handleEcho)
-
-	// Register a regex handler
-	b.Router.OnRegex(`^(?i)hello|hi|hey$`, handleGreeting)
+	app.AddHandler(bot.CommandHandler("/start", handleStart))
+	app.AddHandler(bot.CommandHandler("/help", handleHelp))
+	app.AddHandler(bot.CommandHandler("/echo", handleEcho))
 
 	// Register a default handler
-	b.Router.Default(handleDefault)
+	app.Bot.Router.Default(handleDefault)
 
 	// Start the bot in polling mode
 	log.Info().Msg("Starting starter bot in polling mode...")
-	if err := b.StartPolling(1*time.Second, 30*time.Second); err != nil {
+	if err := app.RunPolling(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start bot")
 	}
 
-	// Wait for interrupt signal (handled internally by StartPolling)
+	// Wait for interrupt signal (handled internally by RunPolling)
 	select {}
 }
 
@@ -69,12 +69,12 @@ func handleStart(ctx *bot.Context) error {
 		name += " " + sender.LastName
 	}
 
-	message := fmt.Sprintf("Hello %s! 👋\n\nWelcome to TeleRiHa!\nUse /help to see what I can do.", name)
+	message := fmt.Sprintf("Hello %s!\n\nWelcome to TeleRiHa!\nUse /help to see what I can do.", name)
 
 	// Send message with a simple inline keyboard
 	kb := bot.NewInlineKeyboard(
 		bot.NewInlineKeyboardRow(
-			bot.InlineButtonURL("📖 Documentation", "https://github.com/Yashwanth-Kumar-26/teleriha"),
+			bot.InlineButtonURL("Documentation", "https://github.com/Yashwanth-Kumar-26/teleriha"),
 		),
 	)
 
@@ -106,7 +106,7 @@ func handleEcho(ctx *bot.Context) error {
 		return err
 	}
 
-	_, err := ctx.Reply(fmt.Sprintf("🔁 You said: %s", args))
+	_, err := ctx.Reply(fmt.Sprintf("Echo: %s", args))
 	return err
 }
 
@@ -125,7 +125,7 @@ func handleGreeting(ctx *bot.Context) error {
 	greetings := []string{"Hello", "Hi", "Hey", "Hi there", "Hello there"}
 	greeting := greetings[time.Now().Unix()%int64(len(greetings))]
 
-	_, err := ctx.Reply(fmt.Sprintf("%s, %s! 😊", greeting, name))
+	_, err := ctx.Reply(fmt.Sprintf("%s, %s!", greeting, name))
 	return err
 }
 

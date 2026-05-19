@@ -519,7 +519,7 @@ func TestApplyMiddlewares(t *testing.T) {
 	assert.NotNil(t, wrapped)
 
 	ctx := &Context{}
-	wrapped(ctx)
+	_ = wrapped(ctx)
 	assert.True(t, middlewareCalled)
 }
 
@@ -592,11 +592,11 @@ func TestOnRegex_WithRunes(t *testing.T) {
 		return nil
 	}
 
-	// Test with emoji
-	err := router.OnRegex(`👍`, handler)
+	// Test with multibyte character
+	err := router.OnRegex(`中`, handler)
 	assert.NoError(t, err)
 
-	msg := testMessage("👍", false)
+	msg := testMessage("中", false)
 	ctx := &Context{Message: msg, Chat: msg.Chat, Sender: msg.From}
 
 	router.HandleMessage(ctx, *msg)
@@ -708,7 +708,7 @@ func BenchmarkRouter_RegexMatch(b *testing.B) {
 		return nil
 	}
 
-	router.OnRegex(`^[a-zA-Z]+$`, handler)
+	_ = router.OnRegex(`^[a-zA-Z]+$`, handler)
 
 	msg := testMessage("hello", false)
 

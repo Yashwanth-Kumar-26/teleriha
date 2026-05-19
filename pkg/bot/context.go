@@ -28,6 +28,12 @@ type Context struct {
 	// ChosenInlineResult is the chosen inline result (may be nil)
 	ChosenInlineResult *ChosenInlineResult
 
+	// PreCheckoutQuery is the pre-checkout query (may be nil)
+	PreCheckoutQuery *PreCheckoutQuery
+
+	// ShippingQuery is the shipping query (may be nil)
+	ShippingQuery *ShippingQuery
+
 	// Chat is the chat from the update (cached for convenience)
 	Chat *Chat
 
@@ -65,6 +71,9 @@ func NewContext(b *Bot, update Update) *Context {
 	case update.ChosenInlineResult != nil:
 		ctx.ChosenInlineResult = update.ChosenInlineResult
 		ctx.Sender = update.ChosenInlineResult.From
+	case update.PreCheckoutQuery != nil:
+		ctx.PreCheckoutQuery = update.PreCheckoutQuery
+		ctx.Sender = update.PreCheckoutQuery.From
 	}
 
 	return ctx
@@ -79,6 +88,7 @@ func (c *Context) WithContext(ctx context.Context) *Context {
 		CallbackQuery:    c.CallbackQuery,
 		InlineQuery:      c.InlineQuery,
 		ChosenInlineResult: c.ChosenInlineResult,
+		PreCheckoutQuery: c.PreCheckoutQuery,
 		Chat:             c.Chat,
 		Sender:           c.Sender,
 		ctx:              ctx,
@@ -209,6 +219,11 @@ func (c *Context) IsInlineQuery() bool {
 // IsChosenInlineResult returns true if this context came from a chosen inline result.
 func (c *Context) IsChosenInlineResult() bool {
 	return c.ChosenInlineResult != nil
+}
+
+// IsPreCheckoutQuery returns true if this context came from a pre-checkout query.
+func (c *Context) IsPreCheckoutQuery() bool {
+	return c.PreCheckoutQuery != nil
 }
 
 // IsMessage returns true if this context came from a message.

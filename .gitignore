@@ -15,3 +15,14 @@ scratch/
 
 
 coverage.out
+
+# Compiled binaries
+main
+
+# Database and locks
+*.db
+*.db-journal
+*.rvf
+*.rvf.lock
+
+main1/

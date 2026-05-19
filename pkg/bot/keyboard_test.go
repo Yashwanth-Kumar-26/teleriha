@@ -339,7 +339,7 @@ func TestPaginationKeyboard_MiddlePage(t *testing.T) {
 	// Should have Previous, Page 2/5, Next
 	assert.Equal(t, "⬅️ Previous", keyboard.InlineKeyboard[0][0].Text)
 	assert.Equal(t, "Page 2/5", keyboard.InlineKeyboard[0][1].Text)
-	assert.Equal(t, "Next ➡️", keyboard.InlineKeyboard[0][2].Text)
+	assert.Equal(t, "Next ️", keyboard.InlineKeyboard[0][2].Text)
 }
 
 // Test PaginationKeyboard first page
@@ -351,7 +351,7 @@ func TestPaginationKeyboard_FirstPage(t *testing.T) {
 	assert.Len(t, keyboard.InlineKeyboard[0], 2)
 	// Should have Page 1/5, Next (no Previous)
 	assert.Equal(t, "Page 1/5", keyboard.InlineKeyboard[0][0].Text)
-	assert.Equal(t, "Next ➡️", keyboard.InlineKeyboard[0][1].Text)
+	assert.Equal(t, "Next ️", keyboard.InlineKeyboard[0][1].Text)
 }
 
 // Test PaginationKeyboard last page

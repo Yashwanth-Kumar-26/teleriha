@@ -478,7 +478,7 @@ func TestChain_PreservesOrder(t *testing.T) {
 	wrapped := combined(handler)
 	ctx := &Context{}
 
-	wrapped(ctx)
+	_ = wrapped(ctx)
 
 	// Order should be: m1 -> m2 -> m3 -> handler
 	assert.Equal(t, []string{"m1", "m2", "m3", "handler"}, order)

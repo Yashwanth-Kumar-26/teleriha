@@ -38,5 +38,5 @@ func TestSchedulerPlugin(t *testing.T) {
 	assert.GreaterOrEqual(t, called, 2)
 	mu.Unlock()
 	
-	p.Stop()
+	_ = p.Stop()
 }

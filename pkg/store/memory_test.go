@@ -42,10 +42,11 @@ func TestMemoryStore_Get_NotFound(t *testing.T) {
 func TestMemoryStore_Delete(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 	assert.True(t, store.Exists("key1"))
 
-	err := store.Delete("key1")
+	err = store.Delete("key1")
 	assert.NoError(t, err)
 
 	assert.False(t, store.Exists("key1"))
@@ -64,7 +65,8 @@ func TestMemoryStore_Delete_NotFound(t *testing.T) {
 func TestMemoryStore_Exists(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 
 	assert.True(t, store.Exists("key1"))
 }
@@ -80,11 +82,14 @@ func TestMemoryStore_Exists_NotFound(t *testing.T) {
 func TestMemoryStore_Clear(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value1"), 0)
-	store.Set("key2", []byte("value2"), 0)
-	store.Set("key3", []byte("value3"), 0)
+	err := store.Set("key1", []byte("value1"), 0)
+	assert.NoError(t, err)
+	err = store.Set("key2", []byte("value2"), 0)
+	assert.NoError(t, err)
+	err = store.Set("key3", []byte("value3"), 0)
+	assert.NoError(t, err)
 
-	err := store.Clear()
+	err = store.Clear()
 	assert.NoError(t, err)
 
 	assert.False(t, store.Exists("key1"))
@@ -96,9 +101,12 @@ func TestMemoryStore_Clear(t *testing.T) {
 func TestMemoryStore_Keys(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value1"), 0)
-	store.Set("key2", []byte("value2"), 0)
-	store.Set("key3", []byte("value3"), 0)
+	err := store.Set("key1", []byte("value1"), 0)
+	assert.NoError(t, err)
+	err = store.Set("key2", []byte("value2"), 0)
+	assert.NoError(t, err)
+	err = store.Set("key3", []byte("value3"), 0)
+	assert.NoError(t, err)
 
 	keys := store.Keys()
 	assert.Len(t, keys, 3)
@@ -113,13 +121,16 @@ func TestMemoryStore_Size(t *testing.T) {
 
 	assert.Equal(t, 0, store.Size())
 
-	store.Set("key1", []byte("value1"), 0)
+	err := store.Set("key1", []byte("value1"), 0)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, store.Size())
 
-	store.Set("key2", []byte("value2"), 0)
+	err = store.Set("key2", []byte("value2"), 0)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, store.Size())
 
-	store.Delete("key1")
+	err = store.Delete("key1")
+	assert.NoError(t, err)
 	assert.Equal(t, 1, store.Size())
 }
 
@@ -127,7 +138,8 @@ func TestMemoryStore_Size(t *testing.T) {
 func TestMemoryStore_Set_WithTTL(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value"), 100*time.Millisecond)
+	err := store.Set("key1", []byte("value"), 100*time.Millisecond)
+	assert.NoError(t, err)
 
 	// Should exist immediately
 	assert.True(t, store.Exists("key1"))
@@ -143,12 +155,13 @@ func TestMemoryStore_Set_WithTTL(t *testing.T) {
 func TestMemoryStore_Get_Expired(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value"), 50*time.Millisecond)
+	err := store.Set("key1", []byte("value"), 50*time.Millisecond)
+	assert.NoError(t, err)
 
 	// Wait for expiration
 	time.Sleep(100 * time.Millisecond)
 
-	_, err := store.Get("key1")
+	_, err = store.Get("key1")
 	assert.Equal(t, ErrKeyNotFound, err)
 }
 
@@ -156,8 +169,10 @@ func TestMemoryStore_Get_Expired(t *testing.T) {
 func TestMemoryStore_Cleanup(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value1"), 50*time.Millisecond)
-	store.Set("key2", []byte("value2"), 0) // No TTL
+	err := store.Set("key1", []byte("value1"), 50*time.Millisecond)
+	assert.NoError(t, err)
+	err = store.Set("key2", []byte("value2"), 0) // No TTL
+	assert.NoError(t, err)
 
 	// Wait for key1 to expire
 	time.Sleep(100 * time.Millisecond)
@@ -176,7 +191,8 @@ func TestMemoryStore_Cleanup(t *testing.T) {
 func TestMemoryStore_Set_ZeroTTL(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 
 	// Wait a bit
 	time.Sleep(50 * time.Millisecond)
@@ -189,8 +205,10 @@ func TestMemoryStore_Set_ZeroTTL(t *testing.T) {
 func TestMemoryStore_Overwrite(t *testing.T) {
 	store := NewMemoryStore()
 
-	store.Set("key1", []byte("value1"), 0)
-	store.Set("key1", []byte("value2"), 0)
+	err := store.Set("key1", []byte("value1"), 0)
+	assert.NoError(t, err)
+	err = store.Set("key1", []byte("value2"), 0)
+	assert.NoError(t, err)
 
 	got, err := store.Get("key1")
 	assert.NoError(t, err)
@@ -207,10 +225,10 @@ func TestMemoryStore_Concurrent(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			key := "key" + string(rune(idx))
-			store.Set(key, []byte("value"), 0)
-			store.Get(key)
-			store.Set(key, []byte("value2"), 0)
-			store.Delete(key)
+			_ = store.Set(key, []byte("value"), 0)
+			_, _ = store.Get(key)
+			_ = store.Set(key, []byte("value2"), 0)
+			_ = store.Delete(key)
 		}(i)
 	}
 
@@ -224,7 +242,7 @@ func TestMemoryStore_ConcurrentRW(t *testing.T) {
 
 	// Pre-populate some keys
 	for i := 0; i < 10; i++ {
-		store.Set("key"+string(rune(i)), []byte("value"), 0)
+		_ = store.Set("key"+string(rune(i)), []byte("value"), 0)
 	}
 
 	var wg sync.WaitGroup
@@ -235,8 +253,8 @@ func TestMemoryStore_ConcurrentRW(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 10; j++ {
-				store.Get("key" + string(rune(j%10)))
-				store.Exists("key" + string(rune(j%10)))
+				_, _ = store.Get("key" + string(rune(j%10)))
+				_ = store.Exists("key" + string(rune(j%10)))
 			}
 		}()
 	}
@@ -248,7 +266,7 @@ func TestMemoryStore_ConcurrentRW(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < 10; j++ {
 				key := "key" + string(rune((idx+j)%10))
-				store.Set(key, []byte("newvalue"), 0)
+				_ = store.Set(key, []byte("newvalue"), 0)
 			}
 		}(i)
 	}
@@ -269,7 +287,8 @@ func TestNewPrefixedMemoryStore(t *testing.T) {
 func TestPrefixedMemoryStore_Get(t *testing.T) {
 	store := NewPrefixedMemoryStore("test:")
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 
 	got, err := store.Get("key1")
 	assert.NoError(t, err)
@@ -280,7 +299,8 @@ func TestPrefixedMemoryStore_Get(t *testing.T) {
 func TestPrefixedMemoryStore_KeyStructure(t *testing.T) {
 	store := NewPrefixedMemoryStore("myprefix:")
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 
 	// The internal store should have the prefixed key
 	// We can verify by checking if the key exists with prefix
@@ -293,8 +313,10 @@ func TestPrefixedMemoryStore_KeyStructure(t *testing.T) {
 	// (we create a new prefixed store to test this)
 	underlying := NewMemoryStore()
 	prefixed := NewPrefixedMemoryStoreWithStore(underlying, "prefix:")
-	underlying.Set("key1", []byte("direct"), 0)
-	prefixed.Set("key1", []byte("prefixed"), 0)
+	err = underlying.Set("key1", []byte("direct"), 0)
+	assert.NoError(t, err)
+	err = prefixed.Set("key1", []byte("prefixed"), 0)
+	assert.NoError(t, err)
 
 	// Getting from prefixed store should return prefixed value
 	got, _ = prefixed.Get("key1")
@@ -313,10 +335,12 @@ func TestPrefixedMemoryStore_KeyStructure(t *testing.T) {
 func TestPrefixedMemoryStore_Delete(t *testing.T) {
 	store := NewPrefixedMemoryStore("test:")
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 	assert.True(t, store.Exists("key1"))
 
-	store.Delete("key1")
+	err = store.Delete("key1")
+	assert.NoError(t, err)
 	assert.False(t, store.Exists("key1"))
 }
 
@@ -326,7 +350,8 @@ func TestPrefixedMemoryStore_Exists(t *testing.T) {
 
 	assert.False(t, store.Exists("key1"))
 
-	store.Set("key1", []byte("value"), 0)
+	err := store.Set("key1", []byte("value"), 0)
+	assert.NoError(t, err)
 	assert.True(t, store.Exists("key1"))
 }
 
@@ -334,12 +359,15 @@ func TestPrefixedMemoryStore_Exists(t *testing.T) {
 func TestPrefixedMemoryStore_Clear(t *testing.T) {
 	store := NewPrefixedMemoryStore("test:")
 
-	store.Set("key1", []byte("value1"), 0)
-	store.Set("key2", []byte("value2"), 0)
+	err := store.Set("key1", []byte("value1"), 0)
+	assert.NoError(t, err)
+	err = store.Set("key2", []byte("value2"), 0)
+	assert.NoError(t, err)
 
 	// Add a key with different prefix to underlying store
 	// We can't directly access the underlying store, but we can test that Clear works
-	store.Clear()
+	err = store.Clear()
+	assert.NoError(t, err)
 
 	// Our keys should be gone
 	assert.False(t, store.Exists("key1"))
@@ -351,7 +379,8 @@ func TestStringStore_GetString(t *testing.T) {
 	store := NewMemoryStore()
 	stringStore := NewStringStore(store)
 
-	stringStore.SetString("key1", "test value", 0)
+	err := stringStore.SetString("key1", "test value", 0)
+	assert.NoError(t, err)
 
 	got, err := stringStore.GetString("key1")
 	assert.NoError(t, err)
@@ -385,7 +414,8 @@ func TestNamespaceStore_KeyPrefixing(t *testing.T) {
 	store := NewMemoryStore()
 	nsStore := NewNamespaceStore(store, "user")
 
-	nsStore.Set("123:name", []byte("John"), 0)
+	err := nsStore.Set("123:name", []byte("John"), 0)
+	assert.NoError(t, err)
 
 	// The key should be "user:123:name" in the underlying store
 	got, err := store.Get("user:123:name")
@@ -424,8 +454,9 @@ func TestUserStore_Delete(t *testing.T) {
 	store := NewMemoryStore()
 	userStore := NewUserStore(store)
 
-	userStore.Set(123, "name", []byte("John"), 0)
-	err := userStore.Delete(123, "name")
+	err := userStore.Set(123, "name", []byte("John"), 0)
+	assert.NoError(t, err)
+	err = userStore.Delete(123, "name")
 	assert.NoError(t, err)
 
 	_, err = userStore.Get(123, "name")
@@ -437,7 +468,8 @@ func TestUserStore_KeyStructure(t *testing.T) {
 	store := NewMemoryStore()
 	userStore := NewUserStore(store)
 
-	userStore.Set(123, "name", []byte("John"), 0)
+	err := userStore.Set(123, "name", []byte("John"), 0)
+	assert.NoError(t, err)
 
 	// The key should be "user:123:name" in the underlying store
 	got, err := store.Get("user:123:name")
@@ -471,7 +503,8 @@ func TestChatStore_KeyStructure(t *testing.T) {
 	store := NewMemoryStore()
 	chatStore := NewChatStore(store)
 
-	chatStore.Set(-1001234567, "title", []byte("Group Chat"), 0)
+	err := chatStore.Set(-1001234567, "title", []byte("Group Chat"), 0)
+	assert.NoError(t, err)
 
 	// The key should be "chat:-1001234567:title" in the underlying store
 	got, err := store.Get("chat:-1001234567:title")
@@ -519,10 +552,12 @@ func TestSessionStore_Delete(t *testing.T) {
 	store := NewMemoryStore()
 	SessionStore := NewSessionStore(store, 0)
 
-	SessionStore.Set("session123", []byte("data"))
-	SessionStore.Delete("session123")
+	err := SessionStore.Set("session123", []byte("data"))
+	assert.NoError(t, err)
+	err = SessionStore.Delete("session123")
+	assert.NoError(t, err)
 
-	_, err := SessionStore.Get("session123")
+	_, err = SessionStore.Get("session123")
 	assert.Equal(t, ErrKeyNotFound, err)
 }
 
@@ -531,48 +566,48 @@ func BenchmarkMemoryStore_Set(b *testing.B) {
 	store := NewMemoryStore()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.Set("key", []byte("value"), 0)
+		_ = store.Set("key", []byte("value"), 0)
 	}
 }
 
 func BenchmarkMemoryStore_Get(b *testing.B) {
 	store := NewMemoryStore()
-	store.Set("key", []byte("value"), 0)
+	_ = store.Set("key", []byte("value"), 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.Get("key")
+		_, _ = store.Get("key")
 	}
 }
 
 func BenchmarkMemoryStore_Delete(b *testing.B) {
 	store := NewMemoryStore()
-	store.Set("key", []byte("value"), 0)
+	_ = store.Set("key", []byte("value"), 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.Delete("key")
-		store.Set("key", []byte("value"), 0)
+		_ = store.Delete("key")
+		_ = store.Set("key", []byte("value"), 0)
 	}
 }
 
 func BenchmarkMemoryStore_Exists(b *testing.B) {
 	store := NewMemoryStore()
-	store.Set("key", []byte("value"), 0)
+	_ = store.Set("key", []byte("value"), 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.Exists("key")
+		_ = store.Exists("key")
 	}
 }
 
 func BenchmarkMemoryStore_Clear(b *testing.B) {
 	store := NewMemoryStore()
 	for i := 0; i < 100; i++ {
-		store.Set("key"+string(rune(i)), []byte("value"), 0)
+		_ = store.Set("key"+string(rune(i)), []byte("value"), 0)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.Clear()
+		_ = store.Clear()
 		for j := 0; j < 100; j++ {
-			store.Set("key"+string(rune(j)), []byte("value"), 0)
+			_ = store.Set("key"+string(rune(j)), []byte("value"), 0)
 		}
 	}
 }
@@ -582,8 +617,8 @@ func BenchmarkUserStore_SetGet(b *testing.B) {
 	userStore := NewUserStore(store)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		userStore.Set(123, "key", []byte("value"), 0)
-		userStore.Get(123, "key")
+		_ = userStore.Set(123, "key", []byte("value"), 0)
+		_, _ = userStore.Get(123, "key")
 	}
 }
 
@@ -592,7 +627,7 @@ func BenchmarkSessionStore_SetGet(b *testing.B) {
 	SessionStore := NewSessionStore(store, 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SessionStore.Set("session", []byte("data"))
-		SessionStore.Get("session")
+		_ = SessionStore.Set("session", []byte("data"))
+		_, _ = SessionStore.Get("session")
 	}
 }

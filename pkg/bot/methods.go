@@ -197,9 +197,17 @@ func (b *Bot) sendPhotoFile(chatID int64, photo interface{}, caption string, opt
 
 	// Add fields from options
 	for _, opt := range opts {
-		opt(map[string]interface{}{})
-		// Options are not applied here as we're using multipart
-		// This is a simplification; in reality, we'd need to handle options differently
+		params := make(map[string]interface{})
+		opt(params)
+		for k, v := range params {
+			// Skip fields already added (chat_id, photo, caption)
+			if k == "chat_id" || k == "photo" || k == "caption" {
+				continue
+			}
+			if err := writer.WriteField(k, fmt.Sprintf("%v", v)); err != nil {
+				return nil, fmt.Errorf("failed to write %s field: %w", k, err)
+			}
+		}
 	}
 
 	if err := writer.Close(); err != nil {
@@ -218,7 +226,7 @@ func (b *Bot) sendPhotoFile(chatID int64, photo interface{}, caption string, opt
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -314,6 +322,20 @@ func (b *Bot) sendDocumentFile(chatID int64, document *os.File, caption string, 
 		}
 	}
 
+	// Add fields from options
+	for _, opt := range opts {
+		params := make(map[string]interface{})
+		opt(params)
+		for k, v := range params {
+			if k == "chat_id" || k == "document" || k == "caption" {
+				continue
+			}
+			if err := writer.WriteField(k, fmt.Sprintf("%v", v)); err != nil {
+				return nil, fmt.Errorf("failed to write %s field: %w", k, err)
+			}
+		}
+	}
+
 	if err := writer.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close writer: %w", err)
 	}
@@ -330,7 +352,7 @@ func (b *Bot) sendDocumentFile(chatID int64, document *os.File, caption string, 
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

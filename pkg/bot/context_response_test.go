@@ -11,7 +11,7 @@ import (
 
 func TestContext_ResponseMethods(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"text":"response"}}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":{"message_id":456,"text":"response"}}`)
 	}))
 	defer server.Close()
 
@@ -50,7 +50,7 @@ func TestContext_ResponseMethods(t *testing.T) {
 
 func TestContext_AnswerCallback(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"ok":true,"result":true}`)
+		_, _ = fmt.Fprint(w, `{"ok":true,"result":true}`)
 	}))
 	defer server.Close()
 

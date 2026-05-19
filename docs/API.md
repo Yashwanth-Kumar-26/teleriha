@@ -615,3 +615,180 @@ cs.Set(chatID, "settings", data, 0)
 ss := store.NewSessionStore(baseStore, 24*time.Hour)
 ss.Set(sessionID, data)
 ```
+
+### SQLiteStore
+
+```go
+import "github.com/Yashwanth-Kumar-26/teleriha/pkg/store"
+
+// Creates or opens a persistent SQLite database file
+sqliteStore, err := store.NewSQLiteStore("bot.db")
+if err != nil {
+    log.Fatal(err)
+}
+defer sqliteStore.Close()
+```
+
+---
+
+## FSM Scene Manager
+
+The State Machine Scene Manager simplifies multi-step conversations (like user onboarding or wizards).
+
+### Scene Definition
+
+```go
+import "github.com/Yashwanth-Kumar-26/teleriha/plugins/scenes"
+
+onboardingScene := scenes.NewScene("onboarding",
+    // Step 1
+    func(ctx *bot.Context) error {
+        return ctx.Reply("Welcome! What is your name?")
+    },
+    // Step 2
+    func(ctx *bot.Context) error {
+        name := ctx.Message.Text
+        // Save user name in session store
+        sess := session.GetSession(ctx)
+        sess.Set("name", []byte(name))
+        return ctx.Reply("Got it! What is your age?")
+    },
+    // Step 3
+    func(ctx *bot.Context) error {
+        age := ctx.Message.Text
+        // Retrieve name from session
+        sess := session.GetSession(ctx)
+        nameBytes, _ := sess.Get("name")
+        
+        ctx.Reply(fmt.Sprintf("Thanks %s! You are registered.", string(nameBytes)))
+        return sceneManager.Leave(ctx) // Clean up scene state
+    },
+)
+```
+
+### Scene Setup & Middleware
+
+```go
+sceneManager := scenes.NewSceneManager()
+sceneManager.AddScene(onboardingScene)
+
+// Scene middleware must run after the session middleware
+app.Bot.Router.Use(session.Middleware(sqliteStore, 24*time.Hour))
+app.Bot.Router.Use(sceneManager.Middleware())
+```
+
+### Entering a Scene
+
+```go
+app.AddHandler(bot.CommandHandler("/register", func(ctx *bot.Context) error {
+    return sceneManager.Enter(ctx, "onboarding")
+}))
+```
+
+---
+
+## Job Queue (Background Tasks)
+
+The framework has an integrated Job Queue scheduler supporting delayed and periodic background tasks.
+
+### Running a Periodic/Repeating Task
+
+```go
+app.JobQueue.RunRepeating(func(ctx *bot.JobContext) error {
+    log.Println("Periodic cleanup task executed!")
+    return nil
+}, 1*time.Hour, time.Now())
+```
+
+### Running a One-Off Delayed Task
+
+```go
+app.JobQueue.RunOnce(func(ctx *bot.JobContext) error {
+    log.Println("Delayed welcome task executed!")
+    return nil
+}, 5*time.Minute)
+```
+
+---
+
+## Telegram Gateway API Client
+
+Interacts with the Telegram Gateway API for high-deliverability phone verification.
+
+```go
+import "github.com/Yashwanth-Kumar-26/teleriha/pkg/gateway"
+
+client := gateway.NewClient("YOUR_GATEWAY_TOKEN")
+
+// Check if verification SMS can be sent
+res, err := client.CheckSendAbility(context.Background(), "+1234567890")
+if err == nil && res.Ok {
+    fmt.Printf("OTP send ability verified. Request ID: %s\n", res.Result.RequestID)
+}
+```
+
+---
+
+## Payments & Telegram Stars
+
+### Sending an Invoice (Telegram Stars)
+
+For Telegram Stars payments, set the currency to `"XTR"` and omit the provider token:
+
+```go
+prices := []bot.LabeledPrice{
+    {Label: "T-Shirt", Amount: 50}, // 50 Stars
+}
+
+_, err := app.Bot.SendInvoice(
+    ctx.ChatID(),
+    "Product Title",
+    "Product Description",
+    "payload_xyz",
+    "", // Empty provider token for Stars
+    "XTR",
+    prices,
+)
+```
+
+### Handling PreCheckout Queries
+
+```go
+app.AddHandler(bot.PreCheckoutQueryHandler(func(ctx *bot.Context) error {
+    // Approve the checkout query
+    return app.Bot.AnswerPreCheckoutQuery(ctx.PreCheckoutQuery.ID, true, "")
+}))
+```
+
+---
+
+## Pagination Keyboard Builder
+
+Generates dynamic, interactive inline buttons for list pagination.
+
+```go
+pb := bot.NewPaginationBuilder(totalPages, currentPage, "callback_prefix_")
+keyboard := pb.Build()
+
+// Send paginated keyboard markup
+_, err := ctx.Reply("Please choose page:", bot.WithReplyMarkup(keyboard))
+```
+
+---
+
+## Message Filters
+
+Filters are used to conditionally route messages to specific handlers.
+
+```go
+// Filter photo messages
+app.AddHandler(bot.MessageHandler(bot.FilterPhoto(), func(ctx *bot.Context) error {
+    return ctx.Reply("Photo received!")
+}))
+
+// Logical operators combination
+filterOr := bot.FilterOr(bot.FilterPhoto(), bot.FilterDocument())
+app.AddHandler(bot.MessageHandler(filterOr, func(ctx *bot.Context) error {
+    return ctx.Reply("Media or Document received!")
+}))
+```
